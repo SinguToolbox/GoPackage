@@ -193,6 +193,10 @@ $OutputFiles = @{
 ## 脚本所在目录
 [string]$ScriptParentPath = $(Split-Path -Parent $MyInvocation.MyCommand.Definition)
 
+If ($SourceDirPath.Length -eq 0) {
+    $SourceDirPath = "."
+}
+
 ## 执行模式
 # 0: 发布模式
 # 1: 调试模式
