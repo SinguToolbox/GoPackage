@@ -23,7 +23,7 @@ Go 程序自动打包脚本（v1.0.0）
 当 CrossPlatform 有值时，该项无效；
 当 TargetSystem 无值时，该项无效；
 
-.PARAMETER ForceCompres
+.PARAMETER ForceCompress
 强制压缩可执行程序，当处于调试模式下时，该项默认为 false；当处于发布模式下时，该项恒定为 true；
 若该项为 true，则会对编译后的可执行程序进行无损压缩（依赖 UPX）。
 UPX：https://upx.github.io
@@ -80,7 +80,7 @@ param(
     # 该项仅对调试模式生效，默认情况下调试模式不执行可执行程序压缩，通过开启该项配置，可以在调试模式下强制压缩可执行程序；
     # 在发布模式下，该项恒定为 true
     [Switch]
-    $ForceCompres,
+    $ForceCompress,
     ## 强制打包
     # 该项仅对调试模式生效，默认情况下调试模式不执行打包流程，通过开启该项配置，可以在调试模式下强制进行打包；
     # 在发布模式下，该项恒定为 true
@@ -150,7 +150,7 @@ $OutputFiles = @{
 [string]$CompileExtParams = ""
 
 # 压缩扩展参数
-[string]$CompresExtParams = ""
+[string]$CompressExtParams = ""
 
 
 
@@ -231,7 +231,7 @@ $SupportList = @{
 ## 格式化名称
 $FormatNames = @{
     # 操作系统
-    windows = "Windowns"
+    windows = "Windows"
     linux = "Linux"
     darwin = "MacOS"
     # CPU 架构
@@ -252,9 +252,9 @@ Catch {
     If ($Mode -eq 0) {
         $(Write-Warning -Message "未找到 UPX 程序，将忽略可执行程序压缩流程")
     }
-    # 若开启了 ForceCompres，则发出错误，并结束程序
-    ElseIf ($ForceCompres) {
-        Write-Error -Message "未找到 UPX 程序，无法完成可执行程序压缩流程，若您仍然想要编译，请关闭 ForceCompres"
+    # 若开启了 ForceCompress，则发出错误，并结束程序
+    ElseIf ($ForceCompress) {
+        Write-Error -Message "未找到 UPX 程序，无法完成可执行程序压缩流程，若您仍然想要编译，请关闭 ForceCompress"
         Exit 1
     }
 }
@@ -409,7 +409,7 @@ Function Compile ([string]$System, [string]$Arch) {
 
 
 # 可执行文件压缩
-Function Compres ([string]$System, [string]$Arch) {
+Function Compress ([string]$System, [string]$Arch) {
     # 若 UPX 不存在，则跳出该函数
     If (-not $HasUPX) {
         return
@@ -417,7 +417,7 @@ Function Compres ([string]$System, [string]$Arch) {
     
     ## 构建压缩命令
     # 构建基本命令
-    $CompresCommand = "upx"
+    $CompressCommand = "upx"
     # 根据执行模式，拼接命令
     Switch ($Mode) {
         0 {
@@ -427,24 +427,24 @@ Function Compres ([string]$System, [string]$Arch) {
             # --best 最佳压缩
             # --brute 尝试所有可用的压缩方法和过滤器
             # --ultra-brute 尝试更多的压缩变体
-            $CompresCommand += " -q -q -q --best" # --ultra-brute
+            $CompressCommand += " -q -q -q --best" # --ultra-brute
         }
         1 {
             ## 调试模式
-            $CompresCommand += " -v"
+            $CompressCommand += " -v"
         }
     }
     # 追加扩展参数
-    If ($CompresExtParams.Length -ne 0) {
-        $CompresCommand += " " + $CompresExtParams
+    If ($CompressExtParams.Length -ne 0) {
+        $CompressCommand += " " + $CompressExtParams
     }
     # 追加目标文件名
-    $CompresCommand += " $BuildDirName/$System-$Arch/$ProgramName"
+    $CompressCommand += " $BuildDirName/$System-$Arch/$ProgramName"
     # 若输出相对路径不为空，则补充输出相对路径
     If ($OutputRelativePath -ne "") {
-        $CompresCommand += "/$OutputRelativePath"
+        $CompressCommand += "/$OutputRelativePath"
     }
-    $CompresCommand += "/$ProgramName"
+    $CompressCommand += "/$ProgramName"
     ## 设置扩展名
     $Extension = ""
     # 若设置了自定义扩展名，则取自定义扩展名
@@ -455,13 +455,13 @@ Function Compres ([string]$System, [string]$Arch) {
     ElseIf ($System -eq "windows") {
         $Extension = ".exe"
     }
-    $CompresCommand += $Extension
+    $CompressCommand += $Extension
 
     ## 执行压缩
     # 输出日志
-    Write-Debug "`<$System`:$Arch`> 可执行程序压缩命令：[$CompresCommand]"
+    Write-Debug "`<$System`:$Arch`> 可执行程序压缩命令：[$CompressCommand]"
     # 执行 UPX 压缩
-    Invoke-Expression "$CompresCommand"
+    Invoke-Expression "$CompressCommand"
     # 检查是否压缩成功
     If (-not $?) {
         Write-Error "`<$System`:$Arch`> 可执行程序压缩失败"
@@ -473,10 +473,10 @@ Function Compres ([string]$System, [string]$Arch) {
 
 # 打包
 #   输出文件示例：
-#   program-name_v1.0.0-alpha_Windowns-x64.zip
-#   program-name_v1.0.0-alpha_Windowns-x32.zip
-#   program-name_v1.0.0-alpha_Windowns-Arm.zip
-#   program-name_v1.0.0-alpha_Windowns-Arm64.zip
+#   program-name_v1.0.0-alpha_Windows-x64.zip
+#   program-name_v1.0.0-alpha_Windows-x32.zip
+#   program-name_v1.0.0-alpha_Windows-Arm.zip
+#   program-name_v1.0.0-alpha_Windows-Arm64.zip
 #   program-name_v1.0.0-alpha_Linux-x32.tar.gz
 #   program-name_v1.0.0-alpha_Linux-x64.tar.gz
 #   program-name_v1.0.0-alpha_Linux-Arm.tar.gz
@@ -485,12 +485,12 @@ Function Compres ([string]$System, [string]$Arch) {
 #   program-name_v1.0.0-alpha_MacOS-x64.tar.gz
 Function PackageFiles ([string]$System, [string]$Arch) {
     # 格式化系统标识及架构标识
-    $FormatedSystem = $FormatNames[$System]
-    $FormatedArch = $FormatNames[$Arch]
+    $FormattedSystem = $FormatNames[$System]
+    $FormattedArch = $FormatNames[$Arch]
     # 编译输出路径
     $BuildOutputPath = "$BuildDirName/$System-$Arch/$ProgramName"
     # 包名称
-    $PackageName = "$ProgramName`_$Version`_$FormatedSystem-$FormatedArch"
+    $PackageName = "$ProgramName`_$Version`_$FormattedSystem-$FormattedArch"
     # 若目标系统是 Windows，则输出 .zip 文件，否则输出 .tar.gz 文件
     If ($System -eq "windows") {
         $PackageName += ".zip"
@@ -503,7 +503,7 @@ Function PackageFiles ([string]$System, [string]$Arch) {
     
     # 写出程序版本说明文件
     If ($Version.Length -ne 0) {
-        Write-Output "$ProgramName($Version) For $FormatedSystem $FormatedArch [$System/$Arch]" > "$BuildOutputPath/version.txt"
+        Write-Output "$ProgramName($Version) For $FormattedSystem $FormattedArch [$System/$Arch]" > "$BuildOutputPath/version.txt"
     }
     # 复制其他文件
     Foreach ($SrcFilepath in $OutputFiles.Keys) {
@@ -528,10 +528,10 @@ Function PackageFiles ([string]$System, [string]$Arch) {
 # 单架构处理
 Function SingleArchitectureProcessing ([string]$System, [string]$Arch) {
     # 格式化系统标识及架构标识
-    $FormatedSystem = $FormatNames[$System]
-    $FormatedArch = $FormatNames[$Arch]
+    $FormattedSystem = $FormatNames[$System]
+    $FormattedArch = $FormatNames[$Arch]
     # 包名称
-    $PackageName = "$ProgramName`_$Version`_$FormatedSystem-$FormatedArch"
+    $PackageName = "$ProgramName`_$Version`_$FormattedSystem-$FormattedArch"
     # 若目标系统是 Windows，则输出 .zip 文件，否则输出 .tar.gz 文件
     If ($System -eq "windows") {
         $PackageName += ".zip"
@@ -563,8 +563,8 @@ Function SingleArchitectureProcessing ([string]$System, [string]$Arch) {
         Write-Warning -Message "目标系统架构 `<$System`:$Arch`> 的编译结果已存在，跳过本次编译"
     }
     # 压缩
-    If ($Mode -eq 0 -or $ForceCompres) {
-        Compres -System $System -Arch $Arch
+    If ($Mode -eq 0 -or $ForceCompress) {
+        Compress -System $System -Arch $Arch
         If (-not $?) {
             return
         }
