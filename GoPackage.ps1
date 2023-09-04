@@ -381,17 +381,17 @@ Function Compile ([string]$System, [string]$Arch) {
     $OutputProgramName = $ProgramName
 
     ## 设置可执行程序扩展名
-    $ExectionExtension = ""
+    $ExecutionExtension = ""
     # 若设置了自定义扩展名，则取自定义扩展名
     If ($CustomExtension -ne "") {
-        $ExectionExtension = $CustomExtension
+        $ExecutionExtension = $CustomExtension
     }
     # 若当前正在编译 Windows 程序，则补充可执行程序后缀名
     ElseIf ($System -eq "windows") {
-        $ExectionExtension = ".exe"
+        $ExecutionExtension = ".exe"
     }
     ## 可执行程序输出文件名
-    $OutputProgramNameForExection += $ExectionExtension
+    $OutputProgramNameForExecution += $ExecutionExtension
 
     ## 设置动态链接库扩展名
     $DynamicLinkLibraryExtension = ""
@@ -413,7 +413,7 @@ Function Compile ([string]$System, [string]$Arch) {
 
     ## 构建编译命令
     # 构建可执行程序基本命令
-    $CompileCommandForExection = "go build -a -o `"$ScriptParentPath/$OutputDirPath/$OutputProgramNameForExection`""
+    $CompileCommandForExecution = "go build -a -o `"$ScriptParentPath/$OutputDirPath/$OutputProgramNameForExecution`""
     # 构建动态链接库基本命令
     $CompileCommandForDynamicLinkLibrary = "go build -a -o `"$ScriptParentPath/$OutputDirPath/$OutputProgramNameForDynamicLinkLibrary`""
    
@@ -421,17 +421,17 @@ Function Compile ([string]$System, [string]$Arch) {
     Switch ($Mode) {
         0 {
             ## 发布模式
-            $CompileCommandForExection += " -trimpath"
+            $CompileCommandForExecution += " -trimpath"
             $CompileCommandForDynamicLinkLibrary += " -trimpath"
         }
     }
     # 追加扩展参数
     If ($CompileExtParams.Length -ne 0) {
-        $CompileCommandForExection += " " + $CompileExtParams
+        $CompileCommandForExecution += " " + $CompileExtParams
         $CompileCommandForDynamicLinkLibrary += " " + $CompileExtParams
     }
     If ($CompileExtParamsForExecution.Length -ne 0) {
-        $CompileCommandForExection += " " + $CompileExtParamsForExecution
+        $CompileCommandForExecution += " " + $CompileExtParamsForExecution
     }
     If ($CompileExtParamsForDynamicLinkLibrary.Length -ne 0) {
         $CompileCommandForDynamicLinkLibrary += " " + $CompileExtParamsForDynamicLinkLibrary
@@ -439,23 +439,23 @@ Function Compile ([string]$System, [string]$Arch) {
     # 追加包名称
     If ($StandardMode) {
         # 标准模式下，直接追加包名
-        $CompileCommandForExection += " " + $ModuleName
+        $CompileCommandForExecution += " " + $ModuleName
         $CompileCommandForDynamicLinkLibrary += " " + $ModuleName
     }
     Else {
         # 非标准模式下，以 '.' 作为包名
-        $CompileCommandForExection += " ."
+        $CompileCommandForExecution += " ."
         $CompileCommandForDynamicLinkLibrary += " ."
     }
 
     ## 执行编译
     If ($BuildTargetType -eq 0 -or $BuildTargetType -eq 2) {
         # 输出日志
-        Write-Debug "`<$System`:$Arch`> 编译命令：[$CompileCommandForExection]"
+        Write-Debug "`<$System`:$Arch`> 编译命令：[$CompileCommandForExecution]"
         # 进入源码目录
         Set-Location -Path $SourceDirPath
         # 执行编译命令
-        Invoke-Expression "$CompileCommandForExection"
+        Invoke-Expression "$CompileCommandForExecution"
         # 检查是否编译成功
         If (-not $?) {
             Write-Error "`>$System`:$Arch`> 可执行程序编译失败"
@@ -534,17 +534,17 @@ Function Compress ([string]$System, [string]$Arch) {
     $CompressCommandForDynamicLinkLibrary += "/$ProgramName"
 
     ## 设置可执行程序扩展名
-    $ExectionExtension = ""
+    $ExecutionExtension = ""
     # 若设置了自定义扩展名，则取自定义扩展名
     If ($CustomExtension -ne "") {
-        $ExectionExtension = $CustomExtension
+        $ExecutionExtension = $CustomExtension
     }
     # 若当前正在编译 Windows 程序，则补充可执行程序后缀名
     ElseIf ($System -eq "windows") {
-        $ExectionExtension = ".exe"
+        $ExecutionExtension = ".exe"
     }
     ## 可执行程序输出文件名
-    $CompressCommandForExecution += $ExectionExtension
+    $CompressCommandForExecution += $ExecutionExtension
 
     ## 设置动态链接库扩展名
     $DynamicLinkLibraryExtension = ""
