@@ -381,8 +381,6 @@ Function Compile ([string]$System, [string]$Arch) {
     If ($OutputRelativePath -ne "") {
         $OutputDirPath += "/$OutputRelativePath"
     }
-    ## 设置输出程序文件名
-    $OutputProgramName = $ProgramName
 
     ## 设置可执行程序扩展名
     $ExecutionExtension = ""
@@ -395,7 +393,7 @@ Function Compile ([string]$System, [string]$Arch) {
         $ExecutionExtension = ".exe"
     }
     ## 可执行程序输出文件名
-    $OutputProgramNameForExecution += $ExecutionExtension
+    $OutputProgramNameForExecution = $ProgramName + $ExecutionExtension
 
     ## 设置动态链接库扩展名
     $DynamicLinkLibraryExtension = ""
@@ -408,7 +406,7 @@ Function Compile ([string]$System, [string]$Arch) {
         $DynamicLinkLibraryExtension = ".so"
     }
     ## 动态链接库输出文件名
-    $OutputProgramNameForDynamicLinkLibrary += $DynamicLinkLibraryExtension
+    $OutputProgramNameForDynamicLinkLibrary = $ProgramName + $DynamicLinkLibraryExtension
 
     ## 创建输出目录
     If (-not (Test-Path -Path $OutputDirPath)) {
