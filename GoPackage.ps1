@@ -127,6 +127,19 @@ param(
 ## 为 2 时，表示构建可执行程序与动态链接库
 [int]$BuildTargetType = 0
 
+# 允许构建的操作系统集合
+## 为空表示不限制任何操作系统
+## 必须以全小写格式书写
+## MacOS 系统必须写为 darwin
+$AllowSystems = @()
+
+# 允许构建的架构类型集合
+## 为空表示不限制任何架构类型
+## 必须以全小写格式书写
+## x32, x86, i386 架构必须写为 386
+## x64 架构必须写为 amd64
+$AllowArches = @()
+
 # 其他文件列表
 ## 在此处声明的文件将会在打包时复制到打包输出目录下
 $OutputFiles = @{
@@ -690,8 +703,16 @@ Function MultiArchitectureProcessing ([string]$SpecifiedSystem="") {
         If ($SpecifiedSystem -ne "" -and $SpecifiedSystem -ne $System) {
             Continue
         }
+        # 若允许构建的系统集合不为空，且当前遍历的操作系统不在允许构建的系统集合中，则跳过
+        If ($AllowSystems.Length -ne 0 -and -not $AllowSystems.Contains($System)) {
+            Continue
+        }
         ## 遍历架构类型
         Foreach ($Arch in $SupportList[$System]) {
+            # 若允许构建的架构类型集合不为空，且当前遍历的架构类型不在允许构建的架构类型集合中，则跳过
+            If ($AllowArches.Length -ne 0 -and -not $AllowArches.Contains($Arch)) {
+                Continue
+            }
             ## 执行处理
             # $item[0]: 目标系统
             # $item[1]: 目标架构
