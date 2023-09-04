@@ -121,6 +121,12 @@ param(
 # 输出相对路径
 [string]$OutputRelativePath = ""
 
+# 构建目标类型
+## 为 0 时，表示仅构建可执行程序
+## 为 1 时，表示仅构建动态链接库
+## 为 2 时，表示构建可执行程序与动态链接库
+[int]$BuildTargetType = 0
+
 # 其他文件列表
 ## 在此处声明的文件将会在打包时复制到打包输出目录下
 $OutputFiles = @{
@@ -140,6 +146,7 @@ $OutputFiles = @{
 
 # 自定义扩展名
 ## 为空时将采用默认扩展名
+## 仅对可执行程序生效，动态链接库不受影响
 [string]$CustomExtension = ""
 
 # 构建目录
@@ -151,8 +158,20 @@ $OutputFiles = @{
 # 编译扩展命令
 [string]$CompileExtParams = ""
 
+# 可执行程序编译扩展命令
+[string]$CompileExtParamsForExecution = ""
+
+# 动态链接库编译扩展命令
+[string]$CompileExtParamsForDynamicLinkLibrary = ""
+
 # 压缩扩展参数
 [string]$CompressExtParams = ""
+
+# 可执行程序压缩扩展命令
+[string]$CompressExtParamsForExecution = ""
+
+# 动态链接库压缩扩展命令
+[string]$CompressExtParamsForDynamicLinkLibrary = ""
 
 
 
@@ -347,17 +366,32 @@ Function Compile ([string]$System, [string]$Arch) {
     }
     ## 设置输出程序文件名
     $OutputProgramName = $ProgramName
-    ## 设置扩展名
-    $Extension = ""
+
+    ## 设置可执行程序扩展名
+    $ExectionExtension = ""
     # 若设置了自定义扩展名，则取自定义扩展名
     If ($CustomExtension -ne "") {
-        $Extension = $CustomExtension
+        $ExectionExtension = $CustomExtension
     }
     # 若当前正在编译 Windows 程序，则补充可执行程序后缀名
     ElseIf ($System -eq "windows") {
-        $Extension = ".exe"
+        $ExectionExtension = ".exe"
     }
-    $OutputProgramName += $Extension
+    ## 可执行程序输出文件名
+    $OutputProgramNameForExection += $ExectionExtension
+
+    ## 设置动态链接库扩展名
+    $DynamicLinkLibraryExtension = ""
+    # 若当前正在编译 Windows 程序，则为 '.dll'
+    If ($System -eq "windows") {
+        $DynamicLinkLibraryExtension = ".dll"
+    }
+    # 否则为 '.so'
+    Else {
+        $DynamicLinkLibraryExtension = ".so"
+    }
+    ## 动态链接库输出文件名
+    $OutputProgramNameForDynamicLinkLibrary += $DynamicLinkLibraryExtension
 
     ## 创建输出目录
     If (-not (Test-Path -Path $OutputDirPath)) {
@@ -365,43 +399,70 @@ Function Compile ([string]$System, [string]$Arch) {
     }
 
     ## 构建编译命令
-    # 构建基本命令
-    $CompileCommand = "go build -a -o `"$ScriptParentPath/$OutputDirPath/$OutputProgramName`""
+    # 构建可执行程序基本命令
+    $CompileCommandForExection = "go build -a -o `"$ScriptParentPath/$OutputDirPath/$OutputProgramNameForExection`""
+    # 构建动态链接库基本命令
+    $CompileCommandForDynamicLinkLibrary = "go build -a -o `"$ScriptParentPath/$OutputDirPath/$OutputProgramNameForDynamicLinkLibrary`""
    
     # 根据执行模式，拼接命令
     Switch ($Mode) {
         0 {
             ## 发布模式
-            $CompileCommand += " -trimpath"
+            $CompileCommandForExection += " -trimpath"
+            $CompileCommandForDynamicLinkLibrary += " -trimpath"
         }
     }
     # 追加扩展参数
     If ($CompileExtParams.Length -ne 0) {
-        $CompileCommand += " " + $CompileExtParams
+        $CompileCommandForExection += " " + $CompileExtParams
+        $CompileCommandForDynamicLinkLibrary += " " + $CompileExtParams
+    }
+    If ($CompileExtParamsForExecution.Length -ne 0) {
+        $CompileCommandForExection += " " + $CompileExtParamsForExecution
+    }
+    If ($CompileExtParamsForDynamicLinkLibrary.Length -ne 0) {
+        $CompileCommandForDynamicLinkLibrary += " " + $CompileExtParamsForDynamicLinkLibrary
     }
     # 追加包名称
     If ($StandardMode) {
         # 标准模式下，直接追加包名
-        $CompileCommand += " " + $ModuleName
+        $CompileCommandForExection += " " + $ModuleName
+        $CompileCommandForDynamicLinkLibrary += " " + $ModuleName
     }
     Else {
         # 非标准模式下，以 '.' 作为包名
-        $CompileCommand += " ."
+        $CompileCommandForExection += " ."
+        $CompileCommandForDynamicLinkLibrary += " ."
     }
 
     ## 执行编译
-    # 输出日志
-    Write-Debug "`<$System`:$Arch`> 编译命令：[$CompileCommand]"
-    # 进入源码目录
-    Set-Location -Path $SourceDirPath
-    # 执行编译命令
-    Invoke-Expression "$CompileCommand"
-    # 检查是否编译成功
-    If (-not $?) {
-        Write-Error "`>$System`:$Arch`> 编译失败"
-        # 回到脚本所在目录
-        Set-Location -Path $ScriptParentPath
-        return
+    If ($BuildTargetType -eq 0 -or $BuildTargetType -eq 2) {
+        # 输出日志
+        Write-Debug "`<$System`:$Arch`> 编译命令：[$CompileCommandForExection]"
+        # 进入源码目录
+        Set-Location -Path $SourceDirPath
+        # 执行编译命令
+        Invoke-Expression "$CompileCommandForExection"
+        # 检查是否编译成功
+        If (-not $?) {
+            Write-Error "`>$System`:$Arch`> 可执行程序编译失败"
+            # 回到脚本所在目录
+            Set-Location -Path $ScriptParentPath
+            return
+        }
+    }
+    If ($BuildTargetType -eq 1 -or $BuildTargetType -eq 2) {
+        # 输出日志
+        Write-Debug "`<$System`:$Arch`> 编译命令：[$CompileCommandForDynamicLinkLibrary]"
+        # 执行编译命令
+        Invoke-Expression "$CompileCommandForDynamicLinkLibrary"
+        # 检查是否编译成功
+        If (-not $?) {
+            Write-Error "`>$System`:$Arch`> 动态链接库编译失败"
+            # 回到脚本所在目录
+            Set-Location -Path $ScriptParentPath
+            return
+        }
     }
 
     ## 回到脚本所在目录
@@ -440,34 +501,73 @@ Function Compress ([string]$System, [string]$Arch) {
     If ($CompressExtParams.Length -ne 0) {
         $CompressCommand += " " + $CompressExtParams
     }
+    [string]$CompressCommandForExecution = $CompressCommand
+    [string]$CompressCommandForDynamicLinkLibrary = $CompressCommand
+    If ($CompressExtParamsForExecution.Length -ne 0) {
+        $CompressCommandForExecution += " " + $CompressExtParamsForExecution
+    }
+    If ($CompressExtParamsForDynamicLinkLibrary.Length -ne 0) {
+        $CompressCommandForDynamicLinkLibrary += " " + $CompressExtParamsForDynamicLinkLibrary
+    }
     # 追加目标文件名
-    $CompressCommand += " $BuildDirName/$System-$Arch/$ProgramName"
+    $CompressCommandForExecution += " $BuildDirName/$System-$Arch/$ProgramName"
+    $CompressCommandForDynamicLinkLibrary += " $BuildDirName/$System-$Arch/$ProgramName"
     # 若输出相对路径不为空，则补充输出相对路径
     If ($OutputRelativePath -ne "") {
-        $CompressCommand += "/$OutputRelativePath"
+        $CompressCommandForExecution += "/$OutputRelativePath"
+        $CompressCommandForDynamicLinkLibrary += "/$OutputRelativePath"
     }
-    $CompressCommand += "/$ProgramName"
-    ## 设置扩展名
-    $Extension = ""
+    $CompressCommandForExecution += "/$ProgramName"
+    $CompressCommandForDynamicLinkLibrary += "/$ProgramName"
+
+    ## 设置可执行程序扩展名
+    $ExectionExtension = ""
     # 若设置了自定义扩展名，则取自定义扩展名
     If ($CustomExtension -ne "") {
-        $Extension = $CustomExtension
+        $ExectionExtension = $CustomExtension
     }
     # 若当前正在编译 Windows 程序，则补充可执行程序后缀名
     ElseIf ($System -eq "windows") {
-        $Extension = ".exe"
+        $ExectionExtension = ".exe"
     }
-    $CompressCommand += $Extension
+    ## 可执行程序输出文件名
+    $CompressCommandForExecution += $ExectionExtension
+
+    ## 设置动态链接库扩展名
+    $DynamicLinkLibraryExtension = ""
+    # 若当前正在编译 Windows 程序，则为 '.dll'
+    If ($System -eq "windows") {
+        $DynamicLinkLibraryExtension = ".dll"
+    }
+    # 否则为 '.so'
+    Else {
+        $DynamicLinkLibraryExtension = ".so"
+    }
+    ## 动态链接库输出文件名
+    $CompressCommandForDynamicLinkLibrary += $DynamicLinkLibraryExtension
 
     ## 执行压缩
-    # 输出日志
-    Write-Debug "`<$System`:$Arch`> 可执行程序压缩命令：[$CompressCommand]"
-    # 执行 UPX 压缩
-    Invoke-Expression "$CompressCommand"
-    # 检查是否压缩成功
-    If (-not $?) {
-        Write-Error "`<$System`:$Arch`> 可执行程序压缩失败"
-        return
+    If ($BuildTargetType -eq 0 -or $BuildTargetType -eq 2) {
+        # 输出日志
+        Write-Debug "`<$System`:$Arch`> 可执行程序压缩命令：[$CompressCommandForExecution]"
+        # 执行 UPX 压缩
+        Invoke-Expression "$CompressCommandForExecution"
+        # 检查是否压缩成功
+        If (-not $?) {
+            Write-Error "`<$System`:$Arch`> 可执行程序压缩失败"
+            return
+        }
+    }
+    If ($BuildTargetType -eq 1 -or $BuildTargetType -eq 2) {
+        # 输出日志
+        Write-Debug "`<$System`:$Arch`> 动态链接库压缩命令：[$CompressCommandForDynamicLinkLibrary]"
+        # 执行 UPX 压缩
+        Invoke-Expression "$CompressCommandForDynamicLinkLibrary"
+        # 检查是否压缩成功
+        If (-not $?) {
+            Write-Error "`<$System`:$Arch`> 动态链接库压缩失败"
+            return
+        }
     }
     return
 }
