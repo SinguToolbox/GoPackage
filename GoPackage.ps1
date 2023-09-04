@@ -282,7 +282,7 @@ $FormatNames = @{
 ## 检查 UPX 是否存在
 [bool]$HasUPX = $true
 Try {
-    $UselessOutput = $(Get-Command -Name upx)
+    $UselessOutput = $(Get-Command -Name upx -ErrorAction Ignore)
 }
 Catch {
     $HasUPX = $false
